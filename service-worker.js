@@ -1,60 +1,55 @@
-const CACHE_NAME = "pwa-cache-v2";
-const API_URL = "http://localhost:3000/api/actividades";
-
-// Archivos esenciales que queremos guardar para modo offline
-const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js"
+// service-worker.js
+const CACHE_NAME = "pwa-cache-v1";
+const APP_SHELL = [
+  "/",           // index.html
+  "/app.js",     // tu app.js
+  "/style.css",  // si tienes CSS
+  "/favicon.ico" // si tienes ícono
 ];
 
-// Instalar y cachear archivos base
+// Instalar service worker y cachear archivos
 self.addEventListener("install", event => {
-  console.log("🟢 Service Worker instalado");
+  console.log("Service Worker instalado");
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(FILES_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
 });
 
-// Activar y limpiar versiones viejas del caché
+// Activar service worker
 self.addEventListener("activate", event => {
-  console.log("⚙️ Activando nuevo Service Worker...");
+  console.log("Service Worker activado");
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      )
+      Promise.all(keys.filter(key => key !== CACHE_NAME)
+      .map(key => caches.delete(key)))
     )
   );
 });
 
-// Interceptar peticiones
+// Interceptar fetch
 self.addEventListener("fetch", event => {
-  if (event.request.url === API_URL) {
-    // Si es la API, intentamos red de primero y cache de respaldo
-    event.respondWith(
-      fetch(event.request)
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+
+      return fetch(event.request)
         .then(response => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
+          // Guardar en cache la nueva respuesta
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, response.clone());
+            return response;
           });
-          return response;
         })
         .catch(() => {
-          console.warn("📦 Cargando datos desde caché");
-          return caches.match(event.request);
-        })
-    );
-  } else {
-    // Para los demás archivos (HTML, CSS, JS)
-    event.respondWith(
-      caches.match(event.request).then(response => {
-        return response || fetch(event.request);
-      })
-    );
-  }
+          // Si falla y no hay cache, devolver array vacío para la API
+          if (event.request.url.includes("/api/actividades")) {
+            return new Response(JSON.stringify([]), {
+              headers: { "Content-Type": "application/json" }
+            });
+          }
+        });
+    })
+  );
 });
