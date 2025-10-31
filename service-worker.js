@@ -1,57 +1,62 @@
 const CACHE_NAME = "mi-pwa-cache-v1";
 
+// Ajusta este array con tus archivos reales en el deploy
 const APP_SHELL = [
   "/",
   "/index.html",
   "/app.js",
-  "/style.css", // asegúrate que exista
+  "/main.css", // si tu CSS se llama diferente, cámbialo aquí
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
 
-
-// Instalación: cachear los assets
+// Instalación: cachear los archivos estáticos
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.all(
+        APP_SHELL.map(url =>
+          cache.add(url).catch(err => console.warn("No se pudo cachear:", url, err))
+        )
+      );
+    })
   );
   self.skipWaiting();
 });
 
-// Activación: tomar control
+// Activación: limpiar caches antiguos si los hubiera
 self.addEventListener("activate", event => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME)
+            .map(key => caches.delete(key))
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-// Interceptar requests
+// Fetch: responder con cache primero, luego red desde API
 self.addEventListener("fetch", event => {
-  const url = new URL(event.request.url);
+  const request = event.request;
 
-  // Si es API
-  if (url.origin === "https://mi-pwa-ivan-soto-kdyi.vercel.app") {
+  // Puedes cachear solo tu API o todo lo que quieras
+  if (request.url.includes("/api/")) {
     event.respondWith(
-      fetch(event.request)
+      fetch(request)
         .then(response => {
-          // Cachear respuesta
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-          return response;
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, response.clone());
+            return response;
+          });
         })
-        .catch(() =>
-          caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) return cachedResponse;
-            // Si no hay cache, devuelve array vacío
-            return new Response(JSON.stringify([]), {
-              headers: { "Content-Type": "application/json" }
-            });
-          })
-        )
+        .catch(() => caches.match(request))
     );
-    return;
+  } else {
+    // Para archivos estáticos
+    event.respondWith(
+      caches.match(request).then(cached => cached || fetch(request))
+    );
   }
-
-  // Archivos estáticos
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => cachedResponse || fetch(event.request))
-  );
 });
