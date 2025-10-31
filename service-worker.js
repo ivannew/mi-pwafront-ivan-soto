@@ -7,34 +7,37 @@ const APP_SHELL = [
   "/favicon.ico"
 ];
 
-self.addEventListener("install", (event) => {
+// Instalación: cachear los assets
+self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
+// Activación: tomar control
+self.addEventListener("activate", event => {
   event.waitUntil(clients.claim());
 });
 
-self.addEventListener("fetch", (event) => {
+// Interceptar requests
+self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
 
-  // Si es llamada a la API
+  // Si es API
   if (url.origin === "https://mi-pwa-ivan-soto-kdyi.vercel.app") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
+        .then(response => {
+          // Cachear respuesta
           const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
           return response;
         })
         .catch(() =>
-          caches.match(event.request).then((cachedResponse) => {
+          caches.match(event.request).then(cachedResponse => {
             if (cachedResponse) return cachedResponse;
+            // Si no hay cache, devuelve array vacío
             return new Response(JSON.stringify([]), {
               headers: { "Content-Type": "application/json" }
             });
@@ -44,8 +47,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Para archivos estáticos
+  // Archivos estáticos
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => cachedResponse || fetch(event.request))
+    caches.match(event.request).then(cachedResponse => cachedResponse || fetch(event.request))
   );
 });
