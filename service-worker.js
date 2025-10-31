@@ -5,7 +5,7 @@ const APP_SHELL = [
   "/",
   "/index.html",
   "/app.js",
-  "/main.css", // si tu CSS se llama diferente, cámbialo aquí
+  "/style.css", // si tu CSS se llama diferente, cámbialo aquí
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
