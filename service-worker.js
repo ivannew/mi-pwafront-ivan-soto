@@ -1,11 +1,14 @@
 const CACHE_NAME = "mi-pwa-cache-v1";
+
 const APP_SHELL = [
   "/",
   "/index.html",
   "/app.js",
-  "/style.css",
-  "/favicon.ico"
+  "/style.css", // asegúrate que exista
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
+
 
 // Instalación: cachear los assets
 self.addEventListener("install", event => {
