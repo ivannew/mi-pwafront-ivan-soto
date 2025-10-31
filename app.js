@@ -1,5 +1,5 @@
 // app.js
-const API_URL = "https://mi-pwa-ivan-soto-4moy.vercel.app/api/actividades"; // URL de tu API remota
+const API_URL = "https://mi-pwa-ivan-soto-kdyi.vercel.app/api/actividades"; // URL de tu API remota
 
 const contenido = document.getElementById("contenido");
 const statusEl = document.getElementById("status");
